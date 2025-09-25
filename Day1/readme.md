@@ -1,4 +1,4 @@
-# 🔐 Core Concepts in DevSecOps
+# Core Concepts in DevSecOps
 
 ## 1. What is Shift-Left Security and Why is it Important?
 Shift-left security means integrating security practices **early in the software development lifecycle (SDLC)** rather than waiting until later stages (like deployment or production).  
