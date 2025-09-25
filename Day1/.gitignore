@@ -2,3 +2,4 @@
 __pycache__/
 *.pyc
 gitleaks-report.json
+bfg-1.15.0.jar
