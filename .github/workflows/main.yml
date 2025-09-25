@@ -23,4 +23,4 @@ jobs:
 
       - name: Run gitleaks scan
         run: |
-          gitleaks detect --no-git -s . -c ./Day1/gitleaks.toml --report-format json --report-path gitleaks-report.json || true
+          gitleaks detect --no-git -s . -c Day1/.gitleaks.toml --report-format json --report-path gitleaks-report.json || true
