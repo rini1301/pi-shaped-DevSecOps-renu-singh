@@ -2,13 +2,8 @@ name: Day-2 OWASP ZAP DAST Scan
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - 'Day-2/**'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'Day-2/**'
+    branches:
+      - main
 
 jobs:
   zap-scan:
@@ -36,7 +31,6 @@ jobs:
         run: |
           cd Day-2/app
           nohup python app.py > flask.log 2>&1 &
-          # wait until port 3000 is reachable (max 30s)
           for i in {1..10}; do
             if curl -sS http://localhost:3000 >/dev/null 2>&1; then
               echo "App is running on :3000"
