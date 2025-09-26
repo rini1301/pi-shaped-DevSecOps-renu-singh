@@ -31,54 +31,57 @@ jobs:
           cd Day-2/app
           pip install -r requirements.txt
 
-      # 4️⃣ Run Flask app in background
+      # 4️⃣ Run Flask app in background on 0.0.0.0:3000
       - name: Run Flask app
         run: |
           cd Day-2/app
-          python app.py &
-          sleep 25
+          nohup python app.py > flask.log 2>&1 &
+          # wait until port 3000 is reachable (max 30s)
           for i in {1..10}; do
-            if curl -s http://localhost:5000 > /dev/null; then
-              echo "App is running!"
+            if curl -sS http://localhost:3000 >/dev/null 2>&1; then
+              echo "App is running on :3000"
               break
             fi
+            echo "Waiting for app to start... ($i)"
             sleep 3
           done
+          tail -n 200 flask.log || true
 
-      # 5️⃣ Create ZAP workspace
-      - name: Create ZAP workspace
+      # 5️⃣ Create ZAP workspace with proper permissions
+      - name: Create ZAP workspace (writable)
         run: |
           mkdir -p zap-workspace
-          chmod 755 zap-workspace
+          chmod -R 777 zap-workspace
+          ls -la zap-workspace
 
-      # 6️⃣ Run ZAP using the zaproxy/action-baseline (no Docker)
+      # 6️⃣ Run ZAP baseline scan
       - name: Run ZAP Scan (baseline)
         uses: zaproxy/action-baseline@v0.9.0
-        continue-on-error: true           # Ignore non-zero exit codes (e.g., exit code 2 = warnings)
+        continue-on-error: true
         with:
-          target: "http://localhost:5000"
-          cmd_options: "-r report_html.html -J report_json.json -w report_md.md"
-          # optional: provide additional flags here (e.g., -T for threat model, -m for max duration)
+          target: "http://localhost:3000"
+          cmd_options: >
+            -r report_html.html
+            -J report_json.json
+            -w report_md.md
+            --output-dir /zap/wrk
 
       # 7️⃣ Move reports to artifacts folder
       - name: Prepare reports
         run: |
           mkdir -p zap-reports
-          # Move reports from workspace (if action wrote them there)
           mv zap-workspace/*.html zap-workspace/*.json zap-workspace/*.md zap-reports/ 2>/dev/null || true
-          # Also check current directory for generated reports
           mv report_html.html report_json.json report_md.md zap-reports/ 2>/dev/null || true
           echo "Final reports:"
           ls -la zap-reports/ || true
 
-      # 8️⃣ Check if reports were actually generated
+      # 8️⃣ Verify reports were generated
       - name: Verify reports
         run: |
           if [ ! -f zap-reports/report_html.html ] && [ ! -f zap-reports/report_json.json ]; then
             echo "No reports found in zap-reports/, checking workspace and repo root..."
             ls -la zap-workspace/ || true
             find . -maxdepth 3 -type f \( -iname "*.html" -o -iname "*.json" -o -iname "*.md" \) | head -20 || true
-            exit 0
           else
             echo "Reports found successfully!"
           fi
