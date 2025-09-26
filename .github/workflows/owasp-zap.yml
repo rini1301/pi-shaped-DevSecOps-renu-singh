@@ -1,4 +1,4 @@
-name: Day-2 OWASP ZAP DAST Scan
+name: Day2 OWASP ZAP DAST Scan
 
 on:
   push:
@@ -23,13 +23,13 @@ jobs:
       # 3️⃣ Install dependencies
       - name: Install dependencies
         run: |
-          cd Day-2/app
+          cd Day2
           pip install -r requirements.txt
 
       # 4️⃣ Run Flask app in background on 0.0.0.0:3000
       - name: Run Flask app
         run: |
-          cd Day-2/app
+          cd Day2
           nohup python app.py > flask.log 2>&1 &
           for i in {1..10}; do
             if curl -sS http://localhost:3000 >/dev/null 2>&1; then
