@@ -55,10 +55,9 @@ jobs:
         with:
           target: "http://localhost:3000"
           cmd_options: >
-            -r report_html.html
-            -J report_json.json
-            -w report_md.md
-            --output-dir /zap/wrk
+           -r report_html.html
+           -J report_json.json
+           -w report_md.md
 
       # 7️⃣ Move reports to artifacts folder
       - name: Prepare reports
