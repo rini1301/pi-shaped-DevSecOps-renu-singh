@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
+      # 1️⃣ Checkout repo
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 3️⃣ Build stage: Install dependencies
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: |
           cd Day4
@@ -29,14 +29,14 @@ jobs:
           pip install -r requirements.txt
           pip install bandit
 
-      # 4️⃣ Security stage: Bandit scan (detect insecure code)
+      # 4️⃣ Bandit scan
       - name: Bandit scan
         run: |
           cd Day4
           bandit -r . -f html -o bandit-report.html
         continue-on-error: true
 
-      # 5️⃣ Security stage: Semgrep scan (detect insecure coding patterns)
+      # 5️⃣ Semgrep scan
       - name: Semgrep scan
         uses: returntocorp/semgrep-action@v1
         with:
@@ -44,7 +44,7 @@ jobs:
           args: "--sarif --output Day4/semgrep-report.sarif"
         continue-on-error: true
 
-      # 6️⃣ Security stage: Trivy scan (detect vulnerable dependencies)
+      # 6️⃣ Trivy scan
       - name: Trivy scan
         run: |
           cd Day4
@@ -53,29 +53,27 @@ jobs:
           trivy fs . --format json --output trivy-report.json
         continue-on-error: true
 
-      # 7️⃣ Runtime security stage: Start Flask app
+      # 7️⃣ Start Flask app
       - name: Start Flask App
         run: |
           cd Day4
-          # Start Flask on all interfaces
           nohup python app.py &
-          echo "Waiting for Flask server to start..."
-          # Wait until the server responds
+          echo "Waiting for Flask server..."
           until curl -s http://localhost:5000 > /dev/null; do
-            echo "Flask not ready yet, waiting 2s..."
+            echo "Flask not ready, waiting..."
             sleep 2
           done
-          echo "Flask server is up!"
+          echo "Flask is up!"
         continue-on-error: true
 
-      # 8️⃣ Runtime security stage: OWASP ZAP scan
+      # 8️⃣ OWASP ZAP scan
       - name: OWASP ZAP scan
         uses: zaproxy/action-full-scan@v0.9.0
         with:
           target: "http://localhost:5000"
-          cmd_options: "-r zap-report.html -f"   # full scan, continue even if alerts exist
+          cmd_options: "-r zap-report.html -f"
 
-      # 9️⃣ Upload all scan reports as CI/CD artifacts
+      # 9️⃣ Upload scan reports
       - name: Upload scan reports
         uses: actions/upload-artifact@v4
         with:
