@@ -36,11 +36,11 @@ jobs:
           bandit -r . -f html -o bandit-report.html
         continue-on-error: true
 
-      # 5️⃣ Semgrep scan (using official action)
+      # 5️⃣ Semgrep scan (use your custom .semgrep.yml)
       - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
         with:
-          config: "p/ci"
+          config: "Day4/.semgrep.yml"
           generateSarif: "true"
           output: "Day4/semgrep-report.sarif"
         continue-on-error: true
