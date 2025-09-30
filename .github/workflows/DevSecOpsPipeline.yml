@@ -11,17 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # 3️⃣ Install dependencies (Flask app + Bandit only)
       - name: Install dependencies
         run: |
           cd Day4
@@ -29,46 +26,40 @@ jobs:
           pip install -r requirements.txt
           pip install bandit
 
-      # 4️⃣ Bandit scan
       - name: Run Bandit
         run: |
           cd Day4
           bandit -r . -f html -o bandit-report.html
         continue-on-error: true
 
-      # 5️⃣ Semgrep scan (official action, no pip install)
       - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
         with:
           config: "Day4/.semgrep.yml"
-          generateSarif: "true"
-          output: "Day4/semgrep-report.sarif"
+          args: "--sarif --output Day4/semgrep-report.sarif"
         continue-on-error: true
 
-      # 6️⃣ Trivy scan
       - name: Run Trivy
         run: |
           cd Day4
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          sudo mv trivy /usr/local/bin/
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b ./bin
+          sudo mv ./bin/trivy /usr/local/bin/
           trivy fs . --format json --output trivy-report.json
         continue-on-error: true
 
-      # 7️⃣ Run Flask app
       - name: Run Flask App
         run: |
           cd Day4
           nohup python app.py &
+          sleep 5
         continue-on-error: true
 
-      # 8️⃣ OWASP ZAP scan
       - name: Run OWASP ZAP
         uses: zaproxy/action-full-scan@v0.9.0
         with:
           target: "http://localhost:5000"
           cmd_options: "-r zap-report.html"
 
-      # 9️⃣ Upload reports
       - name: Upload scan reports
         uses: actions/upload-artifact@v4
         with:
