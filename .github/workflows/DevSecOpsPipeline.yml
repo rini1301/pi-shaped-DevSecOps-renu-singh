@@ -21,15 +21,13 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 3️⃣ Install dependencies (Flask app + Bandit + Trivy only)
+      # 3️⃣ Install dependencies (Flask app + Bandit only)
       - name: Install dependencies
         run: |
           cd Day4
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install bandit
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          sudo mv trivy /usr/local/bin/
 
       # 4️⃣ Bandit scan
       - name: Run Bandit
@@ -38,7 +36,7 @@ jobs:
           bandit -r . -f html -o bandit-report.html
         continue-on-error: true
 
-      # 5️⃣ Semgrep scan (using your custom rules)
+      # 5️⃣ Semgrep scan (official action, no pip install)
       - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
         with:
@@ -47,14 +45,16 @@ jobs:
           output: "Day4/semgrep-report.sarif"
         continue-on-error: true
 
-      # 6️⃣ Trivy scan (dependency scanning)
+      # 6️⃣ Trivy scan
       - name: Run Trivy
         run: |
           cd Day4
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          sudo mv trivy /usr/local/bin/
           trivy fs . --format json --output trivy-report.json
         continue-on-error: true
 
-      # 7️⃣ Start Flask app
+      # 7️⃣ Run Flask app
       - name: Run Flask App
         run: |
           cd Day4
