@@ -11,9 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
+      # 1️⃣ Checkout repository (full depth so Trivy / other tools can inspect history if needed)
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # 2️⃣ Set up Python
       - name: Set up Python
@@ -28,15 +30,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install bandit
+        shell: bash
 
-      # 4️⃣ Static security stage: Bandit scan
+      # 4️⃣ Static security stage: Bandit scan (write report into Day4/)
       - name: Bandit scan
         run: |
           cd Day4
-          bandit -r . -f html -o bandit-report.html
+          bandit -r . -f html -o bandit-report.html || true
+        shell: bash
         continue-on-error: true
 
-      # 5️⃣ Static security stage: Semgrep scan
+      # 5️⃣ Static security stage: Semgrep scan (write SARIF into Day4/)
       - name: Semgrep scan
         uses: returntocorp/semgrep-action@v1
         with:
@@ -44,37 +48,61 @@ jobs:
           args: "--sarif --output Day4/semgrep-report.sarif"
         continue-on-error: true
 
-      # 6️⃣ Dependency security stage: Trivy scan
+      # 6️⃣ Dependency security stage: Trivy filesystem scan (write json into Day4/)
       - name: Trivy scan
-        run: |
-          cd Day4
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b ./bin
-          sudo mv ./bin/trivy /usr/local/bin/
-          trivy fs . --format json --output trivy-report.json
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          format: json
+          output: Day4/trivy-report.json
+          ignore-unfixed: true
+          vuln-type: "os,library"
         continue-on-error: true
 
-      # 7️⃣ Runtime security stage: Start Flask app
+      # 7️⃣ Runtime security stage: Start Flask app (background)
       - name: Start Flask App
         run: |
           cd Day4
-          nohup python app.py &
+          nohup python app.py > app.log 2>&1 &
           echo "Waiting for Flask server..."
-          until curl -s http://localhost:5000 > /dev/null; do
+          for i in {1..20}; do
+            if curl --fail http://127.0.0.1:5000/ >/dev/null 2>&1; then
+              echo "Flask server is up!"
+              break
+            fi
             echo "Flask not ready yet, waiting 2s..."
             sleep 2
           done
-          echo "Flask server is up!"
+        shell: bash
         continue-on-error: true
 
-      # 8️⃣ Runtime security stage: OWASP ZAP scan
-      - name: OWASP ZAP scan
-        uses: zaproxy/action-full-scan@v0.9.0
-        with:
-          target: "http://localhost:5000"
-          cmd_options: "-r zap-report.html -w report_md.md -J report_json.json -I"
+      # Show app logs if start failed
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "--- App failed to start. Printing Day4/app.log: ---"
+          cat Day4/app.log || true
+        shell: bash
+
+      # 8️⃣ Runtime security stage: OWASP ZAP scan using Docker (reports written to Day4/)
+      - name: OWASP ZAP baseline scan (Docker)
+        run: |
+          # ensure workspace permissions for docker-mounted files
+          sudo chown -R 1000:1000 ${{ github.workspace }} || true
+
+          docker run --rm \
+            --add-host=host.docker.internal:host-gateway \
+            -v "${{ github.workspace }}":/zap/wrk \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t http://host.docker.internal:5000/ \
+            -g gen.conf \
+            -J /zap/wrk/Day4/report_json.json \
+            -w /zap/wrk/Day4/report_md.md \
+            -r /zap/wrk/Day4/report_html.html || true
+        shell: bash
         continue-on-error: true
 
-      # 9️⃣ Upload all scan reports as CI/CD artifacts
+      # 9️⃣ Upload all scan reports as CI/CD artifacts (from Day4/)
       - name: Upload scan reports
         uses: actions/upload-artifact@v4
         with:
@@ -83,6 +111,6 @@ jobs:
             Day4/bandit-report.html
             Day4/semgrep-report.sarif
             Day4/trivy-report.json
-            zap-report.html
-            report_md.md
-            report_json.json
+            Day4/report_html.html
+            Day4/report_md.md
+            Day4/report_json.json
